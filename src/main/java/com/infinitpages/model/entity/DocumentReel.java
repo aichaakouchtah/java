@@ -21,12 +21,12 @@ public class DocumentReel extends Document {
     }
     
     public DocumentReel(String titre, String auteur, com.infinitpages.util.constants.Genre genre, String format) {
-        super(titre, auteur, genre, format);
+        super(titre, auteur, format);
     }
     
     public DocumentReel(String titre, String auteur, com.infinitpages.util.constants.Genre genre, String format, 
                        String emplacement, String condition, String ISBN) {
-        super(titre, auteur, genre, format);
+        super(titre, auteur, format);
         this.emplacement = emplacement;
         this.condition = condition;
         this.ISBN = ISBN;

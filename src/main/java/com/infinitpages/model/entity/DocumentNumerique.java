@@ -25,13 +25,13 @@ public class DocumentNumerique extends Document {
     }
     
     public DocumentNumerique(String titre, String auteur, com.infinitpages.util.constants.Genre genre, String format) {
-        super(titre, auteur, genre, format);
+        super(titre, auteur, format);
         this.telechargeable = false;
     }
     
     public DocumentNumerique(String titre, String auteur, com.infinitpages.util.constants.Genre genre, String format,
                             String url, double taille, String formatFichier, boolean telechargeable) {
-        super(titre, auteur, genre, format);
+        super(titre, auteur, format);
         this.url = url;
         this.taille = taille;
         this.formatFichier = formatFichier;
