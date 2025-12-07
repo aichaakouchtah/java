@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 📚 Bibliothèque Numérique - InfinitPages
 
 Application de gestion de bibliothèque numérique développée en Java avec JavaFX, suivant l'architecture MVC.
@@ -86,3 +87,6 @@ com.infinitpages/
 
 **Note** : Cette structure est prête pour le développement étape par étape.
 
+=======
+# java
+>>>>>>> 7a002118f496b3a76a1ae8b230c9f1635db72c14
