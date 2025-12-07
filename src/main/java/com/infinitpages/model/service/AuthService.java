@@ -7,6 +7,11 @@ import com.infinitpages.model.entity.Utilisateur;
 import com.infinitpages.model.dao.PersonneDAO;
 import com.infinitpages.model.dao.AdminDAO;
 import com.infinitpages.model.dao.SuperAdminDAO;
+import com.infinitpages.model.dao.UtilisateurDAO;
+import com.infinitpages.model.dao.impl.PersonneDAOImpl;
+import com.infinitpages.model.dao.impl.AdminDAOImpl;
+import com.infinitpages.model.dao.impl.SuperAdminDAOImpl;
+import com.infinitpages.model.dao.impl.UtilisateurDAOImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,16 +33,16 @@ public class AuthService {
     private PersonneDAO personneDAO;
     private AdminDAO adminDAO;
     private SuperAdminDAO superAdminDAO;
-    // TODO: Injecter UtilisateurDAO quand il sera créé
-    // private UtilisateurDAO utilisateurDAO;
+    private UtilisateurDAO utilisateurDAO;
     
     /**
      * Constructeur par défaut.
      */
     public AuthService() {
-        this.personneDAO = new PersonneDAO();
-        this.adminDAO = new AdminDAO();
-        this.superAdminDAO = new SuperAdminDAO();
+        this.personneDAO = new PersonneDAOImpl();
+        this.adminDAO = new AdminDAOImpl();
+        this.superAdminDAO = new SuperAdminDAOImpl();
+        this.utilisateurDAO = new UtilisateurDAOImpl();
     }
     
     /**
@@ -46,11 +51,13 @@ public class AuthService {
      * @param personneDAO Le DAO Personne à utiliser
      * @param adminDAO Le DAO Admin à utiliser
      * @param superAdminDAO Le DAO SuperAdmin à utiliser
+     * @param utilisateurDAO Le DAO Utilisateur à utiliser
      */
-    public AuthService(PersonneDAO personneDAO, AdminDAO adminDAO, SuperAdminDAO superAdminDAO) {
+    public AuthService(PersonneDAO personneDAO, AdminDAO adminDAO, SuperAdminDAO superAdminDAO, UtilisateurDAO utilisateurDAO) {
         this.personneDAO = personneDAO;
         this.adminDAO = adminDAO;
         this.superAdminDAO = superAdminDAO;
+        this.utilisateurDAO = utilisateurDAO;
     }
     
     /**
@@ -104,9 +111,20 @@ public class AuthService {
                 return admin;
             }
             
-            // TODO: Chercher dans UtilisateurDAO quand il sera créé
-            // Utilisateur utilisateur = utilisateurDAO.findByEmail(email);
-            // if (utilisateur != null) { ... }
+            // Chercher dans UtilisateurDAO
+            Utilisateur utilisateur = utilisateurDAO.findByEmail(email);
+            if (utilisateur != null) {
+                // TODO: Vérifier le mot de passe (hashé)
+                if (!motDePasse.equals(utilisateur.getMotDePasse())) {
+                    throw new IllegalStateException("Email ou mot de passe incorrect");
+                }
+                
+                if (!utilisateur.isEstActif()) {
+                    throw new IllegalStateException("Ce compte est désactivé");
+                }
+                
+                return utilisateur;
+            }
             
             throw new IllegalStateException("Email ou mot de passe incorrect");
             

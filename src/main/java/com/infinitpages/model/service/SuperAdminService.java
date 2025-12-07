@@ -6,10 +6,23 @@ import com.infinitpages.model.entity.Utilisateur;
 import com.infinitpages.model.entity.Rapport;
 import com.infinitpages.model.dao.AdminDAO;
 import com.infinitpages.model.dao.SuperAdminDAO;
+import com.infinitpages.model.dao.UtilisateurDAO;
+import com.infinitpages.model.dao.RapportDAO;
+import com.infinitpages.model.dao.DocumentDAO;
+import com.infinitpages.model.dao.EmpruntDAO;
+import com.infinitpages.model.dao.PaiementDAO;
+import com.infinitpages.model.dao.impl.AdminDAOImpl;
+import com.infinitpages.model.dao.impl.SuperAdminDAOImpl;
+import com.infinitpages.model.dao.impl.UtilisateurDAOImpl;
+import com.infinitpages.model.dao.impl.RapportDAOImpl;
+import com.infinitpages.model.dao.impl.DocumentDAOImpl;
+import com.infinitpages.model.dao.impl.EmpruntDAOImpl;
+import com.infinitpages.model.dao.impl.PaiementDAOImpl;
 import com.infinitpages.util.constants.TypeAdmin;
 import com.infinitpages.util.constants.TypeUtilisateur;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -27,17 +40,23 @@ public class SuperAdminService {
     
     private AdminDAO adminDAO;
     private SuperAdminDAO superAdminDAO;
-    // TODO: Injecter les autres DAO quand ils seront créés
-    // private UtilisateurDAO utilisateurDAO;
-    // private RapportDAO rapportDAO;
-    // private ConfigurationDAO configurationDAO;
+    private UtilisateurDAO utilisateurDAO;
+    private RapportDAO rapportDAO;
+    private DocumentDAO documentDAO;
+    private EmpruntDAO empruntDAO;
+    private PaiementDAO paiementDAO;
     
     /**
      * Constructeur par défaut.
      */
     public SuperAdminService() {
-        this.adminDAO = new AdminDAO();
-        this.superAdminDAO = new SuperAdminDAO();
+        this.adminDAO = new AdminDAOImpl();
+        this.superAdminDAO = new SuperAdminDAOImpl();
+        this.utilisateurDAO = new UtilisateurDAOImpl();
+        this.rapportDAO = new RapportDAOImpl();
+        this.documentDAO = new DocumentDAOImpl();
+        this.empruntDAO = new EmpruntDAOImpl();
+        this.paiementDAO = new PaiementDAOImpl();
     }
     
     /**
@@ -177,9 +196,7 @@ public class SuperAdminService {
         }
         
         try {
-            // TODO: Récupérer tous les utilisateurs depuis la base
-            // return utilisateurDAO.findAll();
-            return List.of();
+            return utilisateurDAO.findAllActifs();
         } catch (Exception e) {
             throw new RuntimeException("Erreur lors de la récupération des utilisateurs: " + e.getMessage(), e);
         }
@@ -197,36 +214,54 @@ public class SuperAdminService {
             throw new IllegalArgumentException("SuperAdmin ne peut pas être null");
         }
         
-        // TODO: Récupérer toutes les statistiques
-        // int totalUtilisateurs = utilisateurDAO.count();
-        // int totalDocuments = documentDAO.count();
-        // int totalEmprunts = empruntDAO.countByPeriode(periode);
-        // double totalRevenus = paiementDAO.sumByPeriode(periode);
-        
-        String contenu = String.format(
-            "Rapport Global du Système - %s\n\n" +
-            "=== Statistiques Générales ===\n" +
-            "Total d'utilisateurs: %d\n" +
-            "Total de documents: %d\n" +
-            "Total d'emprunts: %d\n" +
-            "Revenus totaux: %.2f\n\n" +
-            "=== Répartition par Type ===\n" +
-            "Documents réels: %d\n" +
-            "Documents numériques: %d\n",
-            periode, 0, 0, 0, 0.0, 0, 0
-        );
-        
-        Rapport rapport = new Rapport(
-            "Rapport Global du Système",
-            "GLOBAL",
-            periode,
-            superAdmin
-        );
-        rapport.setContenu(contenu);
-        
         try {
-            // TODO: Sauvegarder le rapport
-            // rapportDAO.save(rapport);
+            // Récupérer toutes les statistiques
+            List<Utilisateur> utilisateurs = utilisateurDAO.findAllActifs();
+            int totalUtilisateurs = utilisateurs.size();
+            int totalDocuments = documentDAO.count();
+            
+            // Parser la période pour obtenir les dates
+            LocalDate dateDebut = parsePeriode(periode, true);
+            LocalDate dateFin = parsePeriode(periode, false);
+            List<com.infinitpages.model.entity.Emprunt> emprunts = empruntDAO.findByPeriode(dateDebut, dateFin);
+            int totalEmprunts = emprunts.size();
+            
+            // Calculer les revenus (simplifié - à améliorer avec PaiementDAO)
+            double totalRevenus = 0.0; // TODO: Implémenter avec PaiementDAO
+            
+            // Compter les documents par type
+            List<com.infinitpages.model.entity.Document> documents = documentDAO.findAll();
+            long documentsReels = documents.stream()
+                .filter(d -> d instanceof com.infinitpages.model.entity.DocumentReel)
+                .count();
+            long documentsNumeriques = documents.stream()
+                .filter(d -> d instanceof com.infinitpages.model.entity.DocumentNumerique)
+                .count();
+            
+            String contenu = String.format(
+                "Rapport Global du Système - %s\n\n" +
+                "=== Statistiques Générales ===\n" +
+                "Total d'utilisateurs: %d\n" +
+                "Total de documents: %d\n" +
+                "Total d'emprunts: %d\n" +
+                "Revenus totaux: %.2f €\n\n" +
+                "=== Répartition par Type ===\n" +
+                "Documents réels: %d\n" +
+                "Documents numériques: %d\n",
+                periode, totalUtilisateurs, totalDocuments, totalEmprunts, totalRevenus, 
+                documentsReels, documentsNumeriques
+            );
+            
+            Rapport rapport = new Rapport(
+                "Rapport Global du Système",
+                "GLOBAL",
+                periode,
+                superAdmin
+            );
+            rapport.setContenu(contenu);
+            
+            // Sauvegarder le rapport
+            rapportDAO.save(rapport);
             return rapport;
         } catch (Exception e) {
             throw new RuntimeException("Erreur lors de la génération du rapport: " + e.getMessage(), e);
@@ -248,9 +283,11 @@ public class SuperAdminService {
             throw new IllegalArgumentException("Le paramètre est requis");
         }
         
-        // TODO: Sauvegarder la configuration
+        // Pour l'instant, on log juste la configuration
+        // TODO: Créer une table de configuration et un DAO si nécessaire
         // Configuration config = new Configuration(parametre, valeur);
         // configurationDAO.saveOrUpdate(config);
+        System.out.println("Configuration système: " + parametre + " = " + valeur);
     }
     
     /**
@@ -267,8 +304,8 @@ public class SuperAdminService {
             throw new IllegalArgumentException("Le tarif ne peut pas être négatif");
         }
         
-        // TODO: Sauvegarder le tarif dans la configuration
-        // configurerSysteme(superAdmin, "TARIF_PENALITE_PAR_JOUR", String.valueOf(tarifParJour));
+        // Sauvegarder le tarif dans la configuration
+        configurerSysteme(superAdmin, "TARIF_PENALITE_PAR_JOUR", String.valueOf(tarifParJour));
     }
     
     /**
@@ -291,9 +328,66 @@ public class SuperAdminService {
             throw new IllegalArgumentException("La durée doit être positive");
         }
         
-        // TODO: Sauvegarder la durée dans la configuration
-        // String cle = "DUREE_EMPRUNT_" + typeUtilisateur.name();
-        // configurerSysteme(superAdmin, cle, String.valueOf(dureeJours));
+        // Sauvegarder la durée dans la configuration
+        String cle = "DUREE_EMPRUNT_" + typeUtilisateur.name();
+        configurerSysteme(superAdmin, cle, String.valueOf(dureeJours));
+    }
+    
+    /**
+     * Parse une période (ex: "Janvier 2025") en dates.
+     */
+    private LocalDate parsePeriode(String periode, boolean debut) {
+        try {
+            String[] parts = periode.split(" ");
+            if (parts.length == 2) {
+                String moisStr = parts[0];
+                int annee = Integer.parseInt(parts[1]);
+                int mois = getMoisFromString(moisStr);
+                
+                if (debut) {
+                    return LocalDate.of(annee, mois, 1);
+                } else {
+                    return LocalDate.of(annee, mois, LocalDate.of(annee, mois, 1).lengthOfMonth());
+                }
+            }
+            
+            if (periode.contains("/")) {
+                String[] dateParts = periode.split("/");
+                int mois = Integer.parseInt(dateParts[0]);
+                int annee = Integer.parseInt(dateParts[1]);
+                
+                if (debut) {
+                    return LocalDate.of(annee, mois, 1);
+                } else {
+                    return LocalDate.of(annee, mois, LocalDate.of(annee, mois, 1).lengthOfMonth());
+                }
+            }
+            
+            LocalDate now = LocalDate.now();
+            if (debut) {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), 1);
+            } else {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), now.lengthOfMonth());
+            }
+        } catch (Exception e) {
+            LocalDate now = LocalDate.now();
+            if (debut) {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), 1);
+            } else {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), now.lengthOfMonth());
+            }
+        }
+    }
+    
+    private int getMoisFromString(String moisStr) {
+        String[] mois = {"janvier", "fevrier", "mars", "avril", "mai", "juin",
+                        "juillet", "aout", "septembre", "octobre", "novembre", "decembre"};
+        for (int i = 0; i < mois.length; i++) {
+            if (mois[i].equalsIgnoreCase(moisStr.toLowerCase())) {
+                return i + 1;
+            }
+        }
+        return LocalDate.now().getMonthValue();
     }
 }
 

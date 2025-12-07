@@ -10,9 +10,26 @@ import com.infinitpages.model.entity.Avis;
 import com.infinitpages.model.entity.Rapport;
 import com.infinitpages.model.entity.Utilisateur;
 import com.infinitpages.model.dao.AdminDAO;
+import com.infinitpages.model.dao.DocumentDAO;
+import com.infinitpages.model.dao.CategorieDAO;
+import com.infinitpages.model.dao.EmpruntDAO;
+import com.infinitpages.model.dao.AvisDAO;
+import com.infinitpages.model.dao.UtilisateurDAO;
+import com.infinitpages.model.dao.RapportDAO;
+import com.infinitpages.model.dao.impl.AdminDAOImpl;
+import com.infinitpages.model.dao.impl.DocumentDAOImpl;
+import com.infinitpages.model.dao.impl.CategorieDAOImpl;
+import com.infinitpages.model.dao.impl.EmpruntDAOImpl;
+import com.infinitpages.model.dao.impl.AvisDAOImpl;
+import com.infinitpages.model.dao.impl.UtilisateurDAOImpl;
+import com.infinitpages.model.dao.impl.RapportDAOImpl;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Service métier pour les opérations administratives.
@@ -29,28 +46,47 @@ import java.util.List;
 public class AdminService {
     
     private AdminDAO adminDAO;
-    // TODO: Injecter les autres DAO quand ils seront créés
-    // private DocumentDAO documentDAO;
-    // private CategorieDAO categorieDAO;
-    // private EmpruntDAO empruntDAO;
-    // private AvisDAO avisDAO;
-    // private UtilisateurDAO utilisateurDAO;
-    // private RapportDAO rapportDAO;
+    private DocumentDAO documentDAO;
+    private CategorieDAO categorieDAO;
+    private EmpruntDAO empruntDAO;
+    private AvisDAO avisDAO;
+    private UtilisateurDAO utilisateurDAO;
+    private RapportDAO rapportDAO;
     
     /**
      * Constructeur par défaut.
      */
     public AdminService() {
-        this.adminDAO = new AdminDAO();
+        this.adminDAO = new AdminDAOImpl();
+        this.documentDAO = new DocumentDAOImpl();
+        this.categorieDAO = new CategorieDAOImpl();
+        this.empruntDAO = new EmpruntDAOImpl();
+        this.avisDAO = new AvisDAOImpl();
+        this.utilisateurDAO = new UtilisateurDAOImpl();
+        this.rapportDAO = new RapportDAOImpl();
     }
     
     /**
-     * Constructeur avec injection du DAO (pour les tests).
+     * Constructeur avec injection des DAO (pour les tests).
      * 
-     * @param adminDAO Le DAO à utiliser
+     * @param adminDAO Le DAO Admin à utiliser
+     * @param documentDAO Le DAO Document à utiliser
+     * @param categorieDAO Le DAO Categorie à utiliser
+     * @param empruntDAO Le DAO Emprunt à utiliser
+     * @param avisDAO Le DAO Avis à utiliser
+     * @param utilisateurDAO Le DAO Utilisateur à utiliser
+     * @param rapportDAO Le DAO Rapport à utiliser
      */
-    public AdminService(AdminDAO adminDAO) {
+    public AdminService(AdminDAO adminDAO, DocumentDAO documentDAO, CategorieDAO categorieDAO,
+                       EmpruntDAO empruntDAO, AvisDAO avisDAO, UtilisateurDAO utilisateurDAO,
+                       RapportDAO rapportDAO) {
         this.adminDAO = adminDAO;
+        this.documentDAO = documentDAO;
+        this.categorieDAO = categorieDAO;
+        this.empruntDAO = empruntDAO;
+        this.avisDAO = avisDAO;
+        this.utilisateurDAO = utilisateurDAO;
+        this.rapportDAO = rapportDAO;
     }
     
     /**
@@ -97,13 +133,17 @@ public class AdminService {
             );
         }
         
-        // TODO: Sauvegarder en base de données
-        // documentDAO.save(document);
-        
-        // TODO: Incrémenter le nombre de documents dans la catégorie
-        // if (document.getCategorieEntity() != null) {
-        //     categorieDAO.incrementerNombreDocuments(document.getCategorieEntity().getId());
-        // }
+        // Sauvegarder en base de données
+        try {
+            documentDAO.save(document);
+            
+            // Incrémenter le nombre de documents dans la catégorie
+            if (document.getCategorieEntity() != null && document.getCategorieEntity().getId() > 0) {
+                categorieDAO.incrementerNombreDocuments(document.getCategorieEntity().getId());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de l'ajout du document: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -133,8 +173,15 @@ public class AdminService {
             );
         }
         
-        // TODO: Mettre à jour en base de données
-        // documentDAO.update(document);
+        // Mettre à jour en base de données
+        try {
+            boolean success = documentDAO.update(document);
+            if (!success) {
+                throw new IllegalStateException("Échec de la mise à jour du document");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la modification du document: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -149,29 +196,44 @@ public class AdminService {
             throw new IllegalArgumentException("Admin ne peut pas être null");
         }
         
-        // TODO: Récupérer le document depuis la base
-        // Document document = documentDAO.findById(documentId);
-        // if (document == null) {
-        //     throw new IllegalArgumentException("Document introuvable");
-        // }
+        // Récupérer le document depuis la base
+        Optional<Document> docOpt = documentDAO.findById(documentId);
+        if (docOpt.isEmpty()) {
+            throw new IllegalArgumentException("Document introuvable");
+        }
+        
+        Document document = docOpt.get();
         
         // Vérifier les permissions
-        // if (!verifierPermissions(admin, document)) {
-        //     throw new IllegalStateException(
-        //         "L'admin n'a pas les permissions pour gérer ce type de document"
-        //     );
-        // }
+        if (!verifierPermissions(admin, document)) {
+            throw new IllegalStateException(
+                "L'admin n'a pas les permissions pour gérer ce type de document"
+            );
+        }
         
-        // TODO: Vérifier qu'il n'y a pas d'emprunts en cours
-        // List<Emprunt> empruntsActifs = empruntDAO.findByDocumentAndEtat(documentId, "EN_COURS");
-        // if (!empruntsActifs.isEmpty()) {
-        //     throw new IllegalStateException("Impossible de supprimer : document en cours d'emprunt");
-        // }
+        // Vérifier qu'il n'y a pas d'emprunts en cours
+        List<Emprunt> empruntsActifs = empruntDAO.findByDocument(documentId);
+        boolean hasActiveLoans = empruntsActifs.stream()
+            .anyMatch(e -> "EN_COURS".equals(e.getEtat()) || e.getDateRetourEffective() == null);
         
-        // TODO: Supprimer le document
-        // documentDAO.delete(documentId);
+        if (hasActiveLoans) {
+            throw new IllegalStateException("Impossible de supprimer : document en cours d'emprunt");
+        }
         
-        // TODO: Décrémenter le nombre de documents dans la catégorie
+        // Supprimer le document
+        try {
+            boolean success = documentDAO.delete(documentId);
+            if (!success) {
+                throw new IllegalStateException("Échec de la suppression du document");
+            }
+            
+            // Décrémenter le nombre de documents dans la catégorie
+            if (document.getCategorieEntity() != null && document.getCategorieEntity().getId() > 0) {
+                categorieDAO.decrementerNombreDocuments(document.getCategorieEntity().getId());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la suppression du document: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -188,8 +250,21 @@ public class AdminService {
             throw new IllegalArgumentException("Categorie ne peut pas être null");
         }
         
-        // TODO: Implémenter la gestion des catégories
-        // categorieDAO.save(categorie);
+        // Gérer les catégories (ajout ou modification)
+        try {
+            if (categorie.getId() > 0) {
+                // Mise à jour
+                boolean success = categorieDAO.update(categorie);
+                if (!success) {
+                    throw new IllegalStateException("Échec de la mise à jour de la catégorie");
+                }
+            } else {
+                // Création
+                categorieDAO.save(categorie);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la gestion de la catégorie: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -204,37 +279,45 @@ public class AdminService {
             throw new IllegalArgumentException("Admin ne peut pas être null");
         }
         
-        // TODO: Récupérer les données depuis la base
-        // List<Emprunt> emprunts = empruntDAO.findByPeriode(periode);
-        // int totalEmprunts = emprunts.size();
-        // int empruntsEnRetard = emprunts.stream()
-        //     .filter(Emprunt::estEnRetard)
-        //     .count();
-        // double totalPenalites = emprunts.stream()
-        //     .mapToDouble(Emprunt::calculerPenalite)
-        //     .sum();
-        
-        // Construire le contenu du rapport
-        String contenu = String.format(
-            "Rapport des Emprunts - %s\n\n" +
-            "Total d'emprunts: %d\n" +
-            "Emprunts en retard: %d\n" +
-            "Total des pénalités: %.2f\n",
-            periode, 0, 0, 0.0
-        );
-        
-        Rapport rapport = new Rapport(
-            "Rapport des Emprunts",
-            "EMPRUNTS",
-            periode,
-            admin
-        );
-        rapport.setContenu(contenu);
-        
-        // TODO: Sauvegarder le rapport
-        // rapportDAO.save(rapport);
-        
-        return rapport;
+        // Récupérer les données depuis la base
+        try {
+            // Parser la période pour obtenir les dates
+            LocalDate dateDebut = parsePeriode(periode, true);
+            LocalDate dateFin = parsePeriode(periode, false);
+            
+            List<Emprunt> emprunts = empruntDAO.findByPeriode(dateDebut, dateFin);
+            int totalEmprunts = emprunts.size();
+            long empruntsEnRetard = emprunts.stream()
+                .filter(Emprunt::estEnRetard)
+                .count();
+            double totalPenalites = emprunts.stream()
+                .mapToDouble(Emprunt::calculerPenalite)
+                .sum();
+            
+            // Construire le contenu du rapport
+            String contenu = String.format(
+                "Rapport des Emprunts - %s\n\n" +
+                "Total d'emprunts: %d\n" +
+                "Emprunts en retard: %d\n" +
+                "Total des pénalités: %.2f €\n",
+                periode, totalEmprunts, empruntsEnRetard, totalPenalites
+            );
+            
+            Rapport rapport = new Rapport(
+                "Rapport des Emprunts",
+                "EMPRUNTS",
+                periode,
+                admin
+            );
+            rapport.setContenu(contenu);
+            
+            // Sauvegarder le rapport
+            rapportDAO.save(rapport);
+            
+            return rapport;
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la génération du rapport: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -249,34 +332,44 @@ public class AdminService {
             throw new IllegalArgumentException("Admin ne peut pas être null");
         }
         
-        // TODO: Récupérer les données depuis la base
-        // List<Document> documents = documentDAO.findAll();
-        // int totalConsultations = documents.stream()
-        //     .mapToInt(Document::getNombreConsultations)
-        //     .sum();
-        // Document documentPlusConsulte = documents.stream()
-        //     .max(Comparator.comparingInt(Document::getNombreConsultations))
-        //     .orElse(null);
-        
-        String contenu = String.format(
-            "Rapport des Consultations - %s\n\n" +
-            "Total de consultations: %d\n" +
-            "Document le plus consulté: %s\n",
-            periode, 0, "N/A"
-        );
-        
-        Rapport rapport = new Rapport(
-            "Rapport des Consultations",
-            "CONSULTATIONS",
-            periode,
-            admin
-        );
-        rapport.setContenu(contenu);
-        
-        // TODO: Sauvegarder le rapport
-        // rapportDAO.save(rapport);
-        
-        return rapport;
+        // Récupérer les données depuis la base
+        try {
+            List<Document> documents = documentDAO.findAll();
+            int totalConsultations = documents.stream()
+                .mapToInt(Document::getNombreConsultations)
+                .sum();
+            Document documentPlusConsulte = documents.stream()
+                .max(Comparator.comparingInt(Document::getNombreConsultations))
+                .orElse(null);
+            
+            String nomDocumentPlusConsulte = documentPlusConsulte != null 
+                ? documentPlusConsulte.getTitre() 
+                : "Aucun";
+            
+            String contenu = String.format(
+                "Rapport des Consultations - %s\n\n" +
+                "Total de consultations: %d\n" +
+                "Document le plus consulté: %s\n" +
+                "Nombre de consultations du document le plus consulté: %d\n",
+                periode, totalConsultations, nomDocumentPlusConsulte,
+                documentPlusConsulte != null ? documentPlusConsulte.getNombreConsultations() : 0
+            );
+            
+            Rapport rapport = new Rapport(
+                "Rapport des Consultations",
+                "CONSULTATIONS",
+                periode,
+                admin
+            );
+            rapport.setContenu(contenu);
+            
+            // Sauvegarder le rapport
+            rapportDAO.save(rapport);
+            
+            return rapport;
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la génération du rapport: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -290,9 +383,12 @@ public class AdminService {
             throw new IllegalArgumentException("Admin ne peut pas être null");
         }
         
-        // TODO: Récupérer les utilisateurs avec leur activité
-        // return utilisateurDAO.findAllWithActivity();
-        return List.of();
+        // Récupérer les utilisateurs avec leur activité
+        try {
+            return utilisateurDAO.findAllActifs();
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la récupération des utilisateurs: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -306,9 +402,16 @@ public class AdminService {
             throw new IllegalArgumentException("Admin ne peut pas être null");
         }
         
-        // TODO: Récupérer les emprunts avec pénalités
-        // return empruntDAO.findWithPenalites();
-        return List.of();
+        // Récupérer les emprunts avec pénalités
+        try {
+            List<Emprunt> empruntsEnRetard = empruntDAO.findEnRetard();
+            // Filtrer ceux qui ont une pénalité > 0
+            return empruntsEnRetard.stream()
+                .filter(e -> e.calculerPenalite() > 0)
+                .toList();
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la récupération des pénalités: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -325,9 +428,13 @@ public class AdminService {
             throw new IllegalArgumentException("Emprunt ne peut pas être null");
         }
         
-        // TODO: Utiliser LoanService pour retourner le document
-        // LoanService loanService = new LoanService();
-        // loanService.retournerDocument(emprunt);
+        // Utiliser LoanService pour retourner le document
+        try {
+            LoanService loanService = new LoanService();
+            loanService.retournerDocument(emprunt);
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la validation du retour: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -345,20 +452,92 @@ public class AdminService {
             throw new IllegalArgumentException("Avis ne peut pas être null");
         }
         
-        if (approuver) {
-            avis.setEstModere(true);
-            // TODO: Mettre à jour la note globale du document
-            // Document document = avis.getDocument();
-            // if (document != null) {
-            //     document.calculerNoteGlobale();
-            // }
-        } else {
-            // TODO: Supprimer ou masquer l'avis
-            // avisDAO.delete(avis.getId());
+        try {
+            if (approuver) {
+                avis.setEstModere(true);
+                avisDAO.update(avis);
+                
+                // Mettre à jour la note globale du document
+                if (avis.getDocument() != null && avis.getDocument().getId() > 0) {
+                    double nouvelleNote = avisDAO.calculerNoteGlobale(avis.getDocument().getId());
+                    documentDAO.updateNoteGlobale(avis.getDocument().getId(), nouvelleNote);
+                }
+            } else {
+                // Supprimer l'avis
+                avisDAO.delete(avis.getId());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la modération de l'avis: " + e.getMessage(), e);
         }
-        
-        // TODO: Sauvegarder en base
-        // avisDAO.update(avis);
+    
+    /**
+     * Parse une période (ex: "Janvier 2025") en dates.
+     * 
+     * @param periode La période à parser
+     * @param debut true pour la date de début, false pour la date de fin
+     * @return La date correspondante
+     */
+    private LocalDate parsePeriode(String periode, boolean debut) {
+        try {
+            // Format attendu: "Janvier 2025" ou "01/2025"
+            String[] parts = periode.split(" ");
+            if (parts.length == 2) {
+                String moisStr = parts[0];
+                int annee = Integer.parseInt(parts[1]);
+                
+                int mois = getMoisFromString(moisStr);
+                
+                if (debut) {
+                    return LocalDate.of(annee, mois, 1);
+                } else {
+                    return LocalDate.of(annee, mois, LocalDate.of(annee, mois, 1).lengthOfMonth());
+                }
+            }
+            
+            // Format alternatif: "01/2025"
+            if (periode.contains("/")) {
+                String[] dateParts = periode.split("/");
+                int mois = Integer.parseInt(dateParts[0]);
+                int annee = Integer.parseInt(dateParts[1]);
+                
+                if (debut) {
+                    return LocalDate.of(annee, mois, 1);
+                } else {
+                    return LocalDate.of(annee, mois, LocalDate.of(annee, mois, 1).lengthOfMonth());
+                }
+            }
+            
+            // Par défaut, utiliser le mois et l'année actuels
+            LocalDate now = LocalDate.now();
+            if (debut) {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), 1);
+            } else {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), now.lengthOfMonth());
+            }
+        } catch (Exception e) {
+            // En cas d'erreur, utiliser le mois actuel
+            LocalDate now = LocalDate.now();
+            if (debut) {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), 1);
+            } else {
+                return LocalDate.of(now.getYear(), now.getMonthValue(), now.lengthOfMonth());
+            }
+        }
     }
+    
+    /**
+     * Convertit un nom de mois en numéro.
+     */
+    private int getMoisFromString(String moisStr) {
+        String[] mois = {"janvier", "fevrier", "mars", "avril", "mai", "juin",
+                        "juillet", "aout", "septembre", "octobre", "novembre", "decembre"};
+        for (int i = 0; i < mois.length; i++) {
+            if (mois[i].equalsIgnoreCase(moisStr.toLowerCase())) {
+                return i + 1;
+            }
+        }
+        return LocalDate.now().getMonthValue();
+    }
+}
 }
 

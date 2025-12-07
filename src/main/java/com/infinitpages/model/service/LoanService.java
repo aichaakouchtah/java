@@ -3,6 +3,10 @@ package com.infinitpages.model.service;
 import com.infinitpages.model.entity.Emprunt;
 import com.infinitpages.model.entity.Document;
 import com.infinitpages.model.entity.Utilisateur;
+import com.infinitpages.model.dao.EmpruntDAO;
+import com.infinitpages.model.dao.DocumentDAO;
+import com.infinitpages.model.dao.impl.EmpruntDAOImpl;
+import com.infinitpages.model.dao.impl.DocumentDAOImpl;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,8 +18,27 @@ import java.util.List;
  */
 public class LoanService {
     
-    // TODO: Injecter EmpruntDAO quand il sera créé
-    // private EmpruntDAO empruntDAO;
+    private EmpruntDAO empruntDAO;
+    private DocumentDAO documentDAO;
+    
+    /**
+     * Constructeur par défaut.
+     */
+    public LoanService() {
+        this.empruntDAO = new EmpruntDAOImpl();
+        this.documentDAO = new DocumentDAOImpl();
+    }
+    
+    /**
+     * Constructeur avec injection des DAO (pour les tests).
+     * 
+     * @param empruntDAO Le DAO Emprunt à utiliser
+     * @param documentDAO Le DAO Document à utiliser
+     */
+    public LoanService(EmpruntDAO empruntDAO, DocumentDAO documentDAO) {
+        this.empruntDAO = empruntDAO;
+        this.documentDAO = documentDAO;
+    }
     
     /**
      * Emprunte un document pour un utilisateur.
@@ -37,11 +60,11 @@ public class LoanService {
             throw new IllegalStateException("Le document n'est pas disponible");
         }
         
-        // TODO: Vérifier si l'utilisateur a atteint sa limite d'emprunts
-        // int nombreEmpruntsActifs = empruntDAO.countEmpruntsActifs(utilisateur);
-        // if (nombreEmpruntsActifs >= utilisateur.getLimiteEmprunts()) {
-        //     throw new IllegalStateException("Limite d'emprunts atteinte");
-        // }
+        // Vérifier si l'utilisateur a atteint sa limite d'emprunts
+        int nombreEmpruntsActifs = empruntDAO.countEmpruntsActifs(utilisateur.getId());
+        if (nombreEmpruntsActifs >= utilisateur.getLimiteEmprunts()) {
+            throw new IllegalStateException("Limite d'emprunts atteinte");
+        }
         
         // Créer l'emprunt
         int dureeMax = utilisateur.getDureeEmpruntJours();
@@ -50,9 +73,13 @@ public class LoanService {
         // Marquer le document comme non disponible
         document.setDisponible(false);
         
-        // TODO: Sauvegarder en base de données
-        // empruntDAO.save(emprunt);
-        // documentDAO.update(document);
+        // Sauvegarder en base de données
+        try {
+            emprunt = empruntDAO.save(emprunt);
+            documentDAO.setDisponible(document.getId(), false);
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de l'emprunt: " + e.getMessage(), e);
+        }
         
         return emprunt;
     }
@@ -88,9 +115,15 @@ public class LoanService {
             document.setDisponible(true);
         }
         
-        // TODO: Sauvegarder en base de données
-        // empruntDAO.update(emprunt);
-        // documentDAO.update(document);
+        // Sauvegarder en base de données
+        try {
+            empruntDAO.update(emprunt);
+            if (document != null && document.getId() > 0) {
+                documentDAO.setDisponible(document.getId(), true);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors du retour: " + e.getMessage(), e);
+        }
         
         return emprunt;
     }
@@ -117,9 +150,15 @@ public class LoanService {
      * @return Liste des emprunts actifs
      */
     public List<Emprunt> getEmpruntsActifs(Utilisateur utilisateur) {
-        // TODO: Implémenter avec DAO
-        // return empruntDAO.findByUtilisateurAndEtat(utilisateur, "EN_COURS");
-        return List.of();
+        if (utilisateur == null) {
+            throw new IllegalArgumentException("Utilisateur ne peut pas être null");
+        }
+        
+        try {
+            return empruntDAO.findActifsByUtilisateur(utilisateur.getId());
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la récupération des emprunts: " + e.getMessage(), e);
+        }
     }
 }
 

@@ -20,6 +20,7 @@ public class SuperAdmin extends Admin {
     }
     
     public SuperAdmin(String nom, String email, String motDePasse, String departement) {
+<<<<<<< HEAD
         super(nom, email, motDePasse, departement, TypeAdmin.BOTH);
     }
     
@@ -134,6 +135,9 @@ public class SuperAdmin extends Admin {
             email != null ? email : "N/A",
             departement != null ? departement : "N/A"
         );
+=======
+        super(nom, email, motDePasse, departement, com.infinitpages.util.constants.TypeAdmin.BOTH);
+>>>>>>> 5bdd9658f3ab6c81eb9a9f78a2c7b95b44c05455
     }
 }
 
