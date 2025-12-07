@@ -4,8 +4,12 @@ import com.infinitpages.model.entity.SuperAdmin;
 import com.infinitpages.model.entity.Admin;
 import com.infinitpages.model.entity.Utilisateur;
 import com.infinitpages.model.entity.Rapport;
+import com.infinitpages.model.dao.AdminDAO;
+import com.infinitpages.model.dao.SuperAdminDAO;
 import com.infinitpages.util.constants.TypeAdmin;
+import com.infinitpages.util.constants.TypeUtilisateur;
 
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -21,11 +25,31 @@ import java.util.List;
  */
 public class SuperAdminService {
     
-    // TODO: Injecter les DAO quand ils seront créés
-    // private AdminDAO adminDAO;
+    private AdminDAO adminDAO;
+    private SuperAdminDAO superAdminDAO;
+    // TODO: Injecter les autres DAO quand ils seront créés
     // private UtilisateurDAO utilisateurDAO;
     // private RapportDAO rapportDAO;
     // private ConfigurationDAO configurationDAO;
+    
+    /**
+     * Constructeur par défaut.
+     */
+    public SuperAdminService() {
+        this.adminDAO = new AdminDAO();
+        this.superAdminDAO = new SuperAdminDAO();
+    }
+    
+    /**
+     * Constructeur avec injection des DAO (pour les tests).
+     * 
+     * @param adminDAO Le DAO Admin à utiliser
+     * @param superAdminDAO Le DAO SuperAdmin à utiliser
+     */
+    public SuperAdminService(AdminDAO adminDAO, SuperAdminDAO superAdminDAO) {
+        this.adminDAO = adminDAO;
+        this.superAdminDAO = superAdminDAO;
+    }
     
     /**
      * Crée un nouvel administrateur.
@@ -42,23 +66,32 @@ public class SuperAdminService {
             throw new IllegalArgumentException("Admin ne peut pas être null");
         }
         
-        // Validation
-        if (admin.getEmail() == null || admin.getEmail().isEmpty()) {
-            throw new IllegalArgumentException("L'email de l'admin est requis");
+        // Validation en utilisant les méthodes de l'entité
+        if (!admin.emailEstValide()) {
+            throw new IllegalArgumentException("L'email de l'admin est invalide");
         }
         
-        // TODO: Vérifier si l'admin existe déjà
-        // Admin existingAdmin = adminDAO.findByEmail(admin.getEmail());
-        // if (existingAdmin != null) {
-        //     throw new IllegalStateException("Un admin avec cet email existe déjà");
-        // }
+        if (!admin.aDesPermissions()) {
+            throw new IllegalArgumentException("L'admin doit avoir des permissions définies");
+        }
         
-        // TODO: Hasher le mot de passe avant sauvegarde
-        // String hashedPassword = PasswordHasher.hash(admin.getMotDePasse());
-        // admin.setMotDePasse(hashedPassword);
-        
-        // TODO: Sauvegarder en base
-        // adminDAO.save(admin);
+        try {
+            // Vérifier si l'admin existe déjà
+            Admin existingAdmin = adminDAO.findByEmail(admin.getEmail());
+            if (existingAdmin != null) {
+                throw new IllegalStateException("Un admin avec cet email existe déjà");
+            }
+            
+            // TODO: Hasher le mot de passe avant sauvegarde
+            // String hashedPassword = PasswordHasher.hash(admin.getMotDePasse());
+            // admin.setMotDePasse(hashedPassword);
+            
+            // Sauvegarder en base
+            adminDAO.save(admin);
+            
+        } catch (SQLException e) {
+            throw new RuntimeException("Erreur lors de la création de l'admin: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -76,28 +109,31 @@ public class SuperAdminService {
             throw new IllegalArgumentException("Admin ne peut pas être null");
         }
         
-        // Empêcher la suppression de soi-même
-        if (admin.getId() == superAdmin.getId()) {
-            throw new IllegalStateException("Un super-admin ne peut pas se supprimer lui-même");
+        // Utiliser la méthode de l'entité pour vérifier
+        if (!superAdmin.peutSupprimerAdmin(admin)) {
+            if (admin.getId() == superAdmin.getId()) {
+                throw new IllegalStateException("Un super-admin ne peut pas se supprimer lui-même");
+            }
+            if (admin instanceof SuperAdmin) {
+                throw new IllegalStateException("Un super-admin ne peut pas supprimer un autre super-admin");
+            }
+            throw new IllegalStateException("Impossible de supprimer cet admin");
         }
         
-        // Empêcher la suppression d'un autre super-admin
-        if (admin instanceof com.infinitpages.model.entity.SuperAdmin) {
-            throw new IllegalStateException("Un super-admin ne peut pas supprimer un autre super-admin");
+        try {
+            // TODO: Vérifier qu'il n'y a pas de rapports liés
+            // List<Rapport> rapports = rapportDAO.findByAdmin(admin.getId());
+            // if (!rapports.isEmpty()) {
+            //     throw new IllegalStateException("Impossible de supprimer : l'admin a généré des rapports");
+            // }
+            
+            // Désactiver plutôt que supprimer (soft delete)
+            admin.setEstActif(false);
+            adminDAO.update(admin);
+            
+        } catch (SQLException e) {
+            throw new RuntimeException("Erreur lors de la suppression de l'admin: " + e.getMessage(), e);
         }
-        
-        // TODO: Vérifier qu'il n'y a pas de rapports liés
-        // List<Rapport> rapports = rapportDAO.findByAdmin(admin.getId());
-        // if (!rapports.isEmpty()) {
-        //     throw new IllegalStateException("Impossible de supprimer : l'admin a généré des rapports");
-        // }
-        
-        // TODO: Désactiver plutôt que supprimer (soft delete)
-        // admin.setEstActif(false);
-        // adminDAO.update(admin);
-        
-        // OU supprimer complètement
-        // adminDAO.delete(admin.getId());
     }
     
     /**
@@ -121,8 +157,12 @@ public class SuperAdminService {
         // Mettre à jour les permissions
         admin.setTypeAdmin(typeAdmin);
         
-        // TODO: Sauvegarder en base
-        // adminDAO.update(admin);
+        try {
+            // Sauvegarder en base
+            adminDAO.update(admin);
+        } catch (SQLException e) {
+            throw new RuntimeException("Erreur lors de la mise à jour des permissions: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -136,9 +176,13 @@ public class SuperAdminService {
             throw new IllegalArgumentException("SuperAdmin ne peut pas être null");
         }
         
-        // TODO: Récupérer tous les utilisateurs depuis la base
-        // return utilisateurDAO.findAll();
-        return List.of();
+        try {
+            // TODO: Récupérer tous les utilisateurs depuis la base
+            // return utilisateurDAO.findAll();
+            return List.of();
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la récupération des utilisateurs: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -180,10 +224,13 @@ public class SuperAdminService {
         );
         rapport.setContenu(contenu);
         
-        // TODO: Sauvegarder le rapport
-        // rapportDAO.save(rapport);
-        
-        return rapport;
+        try {
+            // TODO: Sauvegarder le rapport
+            // rapportDAO.save(rapport);
+            return rapport;
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la génération du rapport: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -232,7 +279,7 @@ public class SuperAdminService {
      * @param dureeJours La nouvelle durée en jours
      */
     public void modifierDureesEmprunt(SuperAdmin superAdmin, 
-                                     com.infinitpages.util.constants.TypeUtilisateur typeUtilisateur, 
+                                     TypeUtilisateur typeUtilisateur, 
                                      int dureeJours) {
         if (superAdmin == null) {
             throw new IllegalArgumentException("SuperAdmin ne peut pas être null");

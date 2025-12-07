@@ -9,7 +9,9 @@ import com.infinitpages.model.entity.Emprunt;
 import com.infinitpages.model.entity.Avis;
 import com.infinitpages.model.entity.Rapport;
 import com.infinitpages.model.entity.Utilisateur;
+import com.infinitpages.model.dao.AdminDAO;
 
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -26,13 +28,30 @@ import java.util.List;
  */
 public class AdminService {
     
-    // TODO: Injecter les DAO quand ils seront créés
+    private AdminDAO adminDAO;
+    // TODO: Injecter les autres DAO quand ils seront créés
     // private DocumentDAO documentDAO;
     // private CategorieDAO categorieDAO;
     // private EmpruntDAO empruntDAO;
     // private AvisDAO avisDAO;
     // private UtilisateurDAO utilisateurDAO;
     // private RapportDAO rapportDAO;
+    
+    /**
+     * Constructeur par défaut.
+     */
+    public AdminService() {
+        this.adminDAO = new AdminDAO();
+    }
+    
+    /**
+     * Constructeur avec injection du DAO (pour les tests).
+     * 
+     * @param adminDAO Le DAO à utiliser
+     */
+    public AdminService(AdminDAO adminDAO) {
+        this.adminDAO = adminDAO;
+    }
     
     /**
      * Vérifie si l'admin a les permissions pour gérer ce type de document.
@@ -66,6 +85,11 @@ public class AdminService {
             throw new IllegalArgumentException("Document ne peut pas être null");
         }
         
+        // Vérifier que l'admin est valide
+        if (!admin.estValide()) {
+            throw new IllegalStateException("L'admin n'est pas valide (inactif ou sans permissions)");
+        }
+        
         // Vérifier les permissions
         if (!verifierPermissions(admin, document)) {
             throw new IllegalStateException(
@@ -95,6 +119,11 @@ public class AdminService {
         }
         if (document == null) {
             throw new IllegalArgumentException("Document ne peut pas être null");
+        }
+        
+        // Vérifier que l'admin est valide
+        if (!admin.estValide()) {
+            throw new IllegalStateException("L'admin n'est pas valide (inactif ou sans permissions)");
         }
         
         // Vérifier les permissions
