@@ -9,6 +9,12 @@ public class DocumentNumerique extends Document {
     // Lien vers le fichier
     protected String url;
     
+    // Chemin du fichier sur le serveur
+    protected String cheminFichier;
+    
+    // Hash du fichier pour vérification d'intégrité
+    protected String hashFichier;
+    
     // Taille du fichier en Mo
     protected double taille;
     
@@ -45,6 +51,22 @@ public class DocumentNumerique extends Document {
     
     public void setUrl(String url) {
         this.url = url;
+    }
+    
+    public String getCheminFichier() {
+        return cheminFichier;
+    }
+    
+    public void setCheminFichier(String cheminFichier) {
+        this.cheminFichier = cheminFichier;
+    }
+    
+    public String getHashFichier() {
+        return hashFichier;
+    }
+    
+    public void setHashFichier(String hashFichier) {
+        this.hashFichier = hashFichier;
     }
     
     public double getTaille() {

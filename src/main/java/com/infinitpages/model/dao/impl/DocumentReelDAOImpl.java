@@ -290,7 +290,14 @@ public class DocumentReelDAOImpl extends DocumentDAOImpl implements DocumentReel
         }
         
         documentReel.setResume(rs.getString("resume"));
-        documentReel.setMotsCles(rs.getString("mots_cles"));
+        // Convertir String en List<String>
+        String motsClesStr = rs.getString("mots_cles");
+        if (motsClesStr != null && !motsClesStr.isEmpty()) {
+            java.util.List<String> motsCles = new java.util.ArrayList<>(java.util.Arrays.asList(motsClesStr.split(",")));
+            documentReel.setMotsCles(motsCles);
+        } else {
+            documentReel.setMotsCles(new java.util.ArrayList<>());
+        }
         documentReel.setPrixParJour(rs.getDouble("prix_par_jour"));
         documentReel.setDisponible(rs.getBoolean("disponible"));
         documentReel.setNombreConsultations(rs.getInt("nombre_consultations"));
@@ -301,7 +308,7 @@ public class DocumentReelDAOImpl extends DocumentDAOImpl implements DocumentReel
         if (!rs.wasNull() && idCategorie > 0) {
             com.infinitpages.model.entity.Categorie categorie = new com.infinitpages.model.entity.Categorie();
             categorie.setId(idCategorie);
-            documentReel.setCategorie(categorie);
+            documentReel.setCategorieEntity(categorie);
         }
         
         // Mapper les champs spécifiques à DocumentReel

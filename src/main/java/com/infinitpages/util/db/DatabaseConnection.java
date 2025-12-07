@@ -103,6 +103,51 @@ public class DatabaseConnection {
     }
     
     /**
+     * Initialize the connection pool using settings from database.properties file.
+     * Loads configuration from src/main/resources/database.properties.
+     * 
+     * @throws RuntimeException if properties file cannot be loaded or is missing required properties
+     */
+    public static void initialize() {
+        try {
+            java.util.Properties props = new java.util.Properties();
+            java.io.InputStream inputStream = DatabaseConnection.class.getClassLoader()
+                    .getResourceAsStream("database.properties");
+            
+            if (inputStream == null) {
+                throw new RuntimeException("database.properties file not found in classpath");
+            }
+            
+            props.load(inputStream);
+            inputStream.close();
+            
+            String host = props.getProperty("db.host", "localhost");
+            String port = props.getProperty("db.port", "3306");
+            String databaseName = props.getProperty("db.name", "infinitpages");
+            String username = props.getProperty("db.username", "root");
+            String password = props.getProperty("db.password", "");
+            
+            String jdbcUrl = String.format(
+                "jdbc:mysql://%s:%s/%s?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true",
+                host, port, databaseName
+            );
+            
+            initialize(jdbcUrl, username, password);
+            
+        } catch (Exception e) {
+            logger.error("Failed to load database properties", e);
+            throw new RuntimeException("Failed to initialize database connection from properties file", e);
+        }
+    }
+    
+    /**
+     * Print pool statistics to console.
+     */
+    public static void printPoolStats() {
+        System.out.println("📊 " + getPoolStats());
+    }
+    
+    /**
      * Get a connection from the connection pool.
      * 
      * The connection is reused from the pool (very fast, <1ms).

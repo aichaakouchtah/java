@@ -2,6 +2,8 @@ package com.infinitpages.model.entity;
 
 import com.infinitpages.util.constants.Genre;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -19,10 +21,13 @@ public abstract class Document {
     // Auteur du document
     protected String auteur;
     
+    // Genre du document
+    protected Genre genre;
+    
     // Catégorie du document (nom de la catégorie)
     protected String categorie;
     
-    // Mots-clés pour la recherche
+    // Mots-clés pour la recherche (stocké comme String dans la BDD, converti en List)
     protected List<String> motsCles;
     
     // Le document est-il disponible pour emprunt ?
@@ -91,6 +96,14 @@ public abstract class Document {
     
     public void setAuteur(String auteur) {
         this.auteur = auteur;
+    }
+    
+    public Genre getGenre() {
+        return genre;
+    }
+    
+    public void setGenre(Genre genre) {
+        this.genre = genre;
     }
     
     public String getCategorie() {

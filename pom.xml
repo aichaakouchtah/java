@@ -42,7 +42,7 @@
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
-            <version>${hikaricp.version}</hikaricp.version>
+            <version>${hikaricp.version}</version>
         </dependency>
 
         <!-- MySQL Driver -->

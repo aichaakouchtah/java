@@ -8,6 +8,7 @@ import com.infinitpages.util.db.DatabaseConnection;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -291,15 +292,19 @@ public class DocumentDAOImpl implements DocumentDAO {
             }
             
             stmt.setString(6, document.getResume());
-            stmt.setString(7, document.getMotsCles());
+            // Convertir List<String> en String (séparé par virgules)
+            String motsClesStr = document.getMotsCles() != null && !document.getMotsCles().isEmpty()
+                    ? String.join(",", document.getMotsCles()) : null;
+            stmt.setString(7, motsClesStr);
             stmt.setDouble(8, document.getPrixParJour());
             stmt.setBoolean(9, document.isDisponible());
             stmt.setInt(10, document.getNombreConsultations());
             stmt.setInt(11, document.getNombreEmprunts());
             stmt.setDouble(12, document.getNoteGlobale());
             
-            if (document.getCategorie() != null) {
-                stmt.setInt(13, document.getCategorie().getId());
+            // Utiliser getCategorieEntity() pour obtenir l'objet Categorie
+            if (document.getCategorieEntity() != null) {
+                stmt.setInt(13, document.getCategorieEntity().getId());
             } else {
                 stmt.setNull(13, Types.INTEGER);
             }
@@ -344,15 +349,19 @@ public class DocumentDAOImpl implements DocumentDAO {
             }
             
             stmt.setString(6, document.getResume());
-            stmt.setString(7, document.getMotsCles());
+            // Convertir List<String> en String (séparé par virgules)
+            String motsClesStr = document.getMotsCles() != null && !document.getMotsCles().isEmpty()
+                    ? String.join(",", document.getMotsCles()) : null;
+            stmt.setString(7, motsClesStr);
             stmt.setDouble(8, document.getPrixParJour());
             stmt.setBoolean(9, document.isDisponible());
             stmt.setInt(10, document.getNombreConsultations());
             stmt.setInt(11, document.getNombreEmprunts());
             stmt.setDouble(12, document.getNoteGlobale());
             
-            if (document.getCategorie() != null) {
-                stmt.setInt(13, document.getCategorie().getId());
+            // Utiliser getCategorieEntity() pour obtenir l'objet Categorie
+            if (document.getCategorieEntity() != null) {
+                stmt.setInt(13, document.getCategorieEntity().getId());
             } else {
                 stmt.setNull(13, Types.INTEGER);
             }
@@ -521,7 +530,14 @@ public class DocumentDAOImpl implements DocumentDAO {
         }
         
         document.setResume(rs.getString("resume"));
-        document.setMotsCles(rs.getString("mots_cles"));
+        // Convertir String en List<String>
+        String motsClesStr = rs.getString("mots_cles");
+        if (motsClesStr != null && !motsClesStr.isEmpty()) {
+            List<String> motsCles = new ArrayList<>(Arrays.asList(motsClesStr.split(",")));
+            document.setMotsCles(motsCles);
+        } else {
+            document.setMotsCles(new ArrayList<>());
+        }
         document.setPrixParJour(rs.getDouble("prix_par_jour"));
         document.setDisponible(rs.getBoolean("disponible"));
         document.setNombreConsultations(rs.getInt("nombre_consultations"));
@@ -532,7 +548,7 @@ public class DocumentDAOImpl implements DocumentDAO {
         if (!rs.wasNull() && idCategorie > 0) {
             Categorie categorie = new Categorie();
             categorie.setId(idCategorie);
-            document.setCategorie(categorie);
+            document.setCategorieEntity(categorie);
         }
         
         return document;

@@ -297,7 +297,7 @@ public class DocumentNumeriqueDAOImpl extends DocumentDAOImpl implements Documen
         documentNumerique.setNombreConsultations(doc.getNombreConsultations());
         documentNumerique.setNombreEmprunts(doc.getNombreEmprunts());
         documentNumerique.setNoteGlobale(doc.getNoteGlobale());
-        documentNumerique.setCategorie(doc.getCategorie());
+        documentNumerique.setCategorieEntity(doc.getCategorieEntity());
         
         // Mapper les champs spécifiques à DocumentNumerique
         documentNumerique.setUrl(rs.getString("url"));
